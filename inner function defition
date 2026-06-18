@@ -1,0 +1,295 @@
+An inner function (also called a nested function) is simply:
+
+A function defined inside another function.
+
+Example:
+
+def outer():
+    def inner():
+        print("I am inner function")
+
+    inner()
+
+outer()
+
+Output:
+
+I am inner function
+
+Here:
+
+outer() = outer function
+inner() = inner function
+Why do we need inner functions?
+
+When people first learn Python, they often ask:
+
+"Why not just create a normal function outside?"
+
+Good question.
+
+Inner functions are useful when a function is needed only inside another function.
+
+Think of it like this:
+
+Company
+ └── HR Department
+      └── HR Helper
+
+If the helper is only used by HR, why expose it to the whole company?
+
+Similarly:
+
+def process_employee():
+    def validate_employee():
+        pass
+
+    validate_employee()
+
+validate_employee() is only relevant to process_employee().
+
+Use Case 1: Hide Helper Logic
+
+Without inner function:
+
+def validate_name(name):
+    return len(name) > 0
+
+def create_user(name):
+    if validate_name(name):
+        print("User Created")
+
+But if validate_name() is only used by create_user():
+
+def create_user(name):
+
+    def validate_name():
+        return len(name) > 0
+
+    if validate_name():
+        print("User Created")
+
+Benefits:
+
+Cleaner code
+Helper function not exposed globally
+Easier maintenance
+Use Case 2: Access Parent Variables
+
+Inner functions can access variables from the outer function.
+
+Example:
+
+def outer():
+
+    message = "Hello"
+
+    def inner():
+        print(message)
+
+    inner()
+
+outer()
+
+Output:
+
+Hello
+
+Notice:
+
+message = "Hello"
+
+belongs to outer().
+
+Yet inner() can use it.
+
+This is called a closure scope.
+
+Visual Representation
+outer()
+│
+├── message = "Hello"
+│
+└── inner()
+      │
+      └── can access message
+Use Case 3: Avoid Passing Variables Repeatedly
+
+Without inner function:
+
+def calculate_tax(amount, tax_rate):
+    return amount * tax_rate
+
+def calculate_final(amount, tax_rate):
+    tax = calculate_tax(amount, tax_rate)
+    return amount + tax
+
+With inner function:
+
+def calculate_final(amount):
+
+    tax_rate = 0.18
+
+    def calculate_tax():
+        return amount * tax_rate
+
+    return amount + calculate_tax()
+
+The inner function automatically gets access to:
+
+amount
+tax_rate
+
+No need to pass them.
+
+Use Case 4: Closures
+
+This is the most powerful use.
+
+Example:
+
+def multiplier(x):
+
+    def multiply(y):
+        return x * y
+
+    return multiply
+
+Usage:
+
+double = multiplier(2)
+
+print(double(10))
+
+Output:
+
+20
+
+What happened?
+
+double = multiplier(2)
+
+creates:
+
+def multiply(y):
+    return 2 * y
+
+internally.
+
+The inner function remembers x=2 even after multiplier() finishes.
+
+This remembered state is called a closure.
+
+Use Case 5: Decorators
+
+Almost every decorator uses inner functions.
+
+Example:
+
+def logger(func):
+
+    def wrapper():
+        print("Before")
+
+        func()
+
+        print("After")
+
+    return wrapper
+
+Usage:
+
+@logger
+def hello():
+    print("Hello")
+
+Output:
+
+Before
+Hello
+After
+
+Here:
+
+wrapper()
+
+is an inner function.
+
+Decorators are impossible without nested functions and closures.
+
+Scope Rules
+
+Inner function can access:
+
+def outer():
+
+    x = 10
+
+    def inner():
+        print(x)
+
+✅ Allowed
+
+Outer function cannot access inner variables:
+
+def outer():
+
+    def inner():
+        y = 20
+
+    print(y)
+
+❌ Error
+
+NameError
+
+Because y exists only inside inner().
+
+Real FastAPI Example
+
+Suppose you need validation only inside one endpoint.
+
+async def create_user(user):
+
+    def validate():
+        if not user.name:
+            raise ValueError("Invalid Name")
+
+    validate()
+
+    return {"status": "success"}
+
+The validation helper is local to that endpoint.
+
+No reason to expose it globally.
+
+Interview Answer
+What is an inner function?
+
+A function defined inside another function.
+
+def outer():
+    def inner():
+        pass
+Why use it?
+Hide helper logic.
+Improve code organization.
+Access outer function variables.
+Create closures.
+Build decorators.
+Avoid polluting global namespace.
+Most Important Concept
+
+The real power of inner functions is:
+
+def outer():
+    x = 100
+
+    def inner():
+        return x
+
+    return inner
+
+The inner function can remember variables from its parent function even after the parent function has finished executing.
+
+This capability is called a closure, and it is the foundation of decorators, callbacks, factories, and many advanced Python patterns.
