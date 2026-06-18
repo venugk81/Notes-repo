@@ -1,0 +1,67 @@
+'''
+
+When to Use Which?
+Use gather() when
+
+You want:
+
+result1 = ...
+result2 = ...
+result3 = ...
+
+and need all results before continuing.
+
+Example:
+
+await asyncio.gather(
+    fetch_users(),
+    fetch_products(),
+    fetch_orders()
+)
+Use create_task() when
+
+You want background execution.
+
+Example:
+
+asyncio.create_task(send_email())
+
+Return response immediately:
+
+return {"status": "success"}
+
+Email continues in background.
+
+Can They Be Used Together?
+
+Absolutely.
+
+task1 = asyncio.create_task(fetch_user())
+task2 = asyncio.create_task(fetch_orders())
+
+results = await asyncio.gather(
+    task1,
+    task2
+)
+
+gather() can wait on tasks that were created with create_task().
+Interview-Friendly Summary
+Feature	create_task()	gather()
+Starts coroutine	✅	✅
+Runs concurrently	✅	✅
+Returns immediately	✅	❌
+Waits for completion	Only when you await task	Immediately
+Multiple coroutines	Possible but manual	Designed for it
+Returns results	One task result	List/tuple of results
+Background jobs	Excellent	Not suitable
+Parallel API calls	Possible	Best choice
+Mental Model
+asyncio.create_task()
+
+= "Start this work and I'll decide later when (or whether) to wait."
+
+await asyncio.gather(...)
+
+= "Start all these works now and don't continue until every one of them finishes."
+
+'''
