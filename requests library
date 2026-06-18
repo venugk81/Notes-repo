@@ -1,0 +1,146 @@
+The requests library is synchronous (blocking), so it's a great contrast to asyncio. Here are clean, practical examples:
+
+1 — Simple GET request
+pythonimport requests
+
+response = requests.get("https://jsonplaceholder.typicode.com/posts/1")
+
+print(response.status_code)      # 200
+print(response.json())           # parsed JSON as dict
+print(response.text)             # raw string
+print(response.headers)          # response headers
+
+2 — GET with query parameters
+pythonimport requests
+
+params = {
+    "userId": 1,
+    "completed": True
+}
+
+response = requests.get("https://jsonplaceholder.typicode.com/todos", params=params)
+
+# requests builds the URL: .../todos?userId=1&completed=True
+print(response.url)
+print(response.json())   # list of todos for user 1
+
+3 — POST request (sending data)
+pythonimport requests
+
+payload = {
+    "title": "My Post",
+    "body": "Hello from requests!",
+    "userId": 1
+}
+
+response = requests.post(
+    "https://jsonplaceholder.typicode.com/posts",
+    json=payload          # automatically sets Content-Type: application/json
+)
+
+print(response.status_code)   # 201 Created
+print(response.json())        # echoes back the created object with an id
+
+4 — Headers & authentication
+pythonimport requests
+
+headers = {
+    "Authorization": "Bearer your_token_here",
+    "Accept": "application/json"
+}
+
+response = requests.get(
+    "https://api.github.com/user",
+    headers=headers
+)
+
+print(response.status_code)
+print(response.json())
+Basic auth shortcut:
+pythonresponse = requests.get(
+    "https://httpbin.org/basic-auth/user/pass",
+    auth=("user", "pass")    # (username, password)
+)
+print(response.json())   # {"authenticated": True, "user": "user"}
+
+5 — Error handling (the right way)
+pythonimport requests
+
+try:
+    response = requests.get("https://jsonplaceholder.typicode.com/posts/1", timeout=5)
+    response.raise_for_status()   # raises HTTPError for 4xx / 5xx
+    data = response.json()
+    print(data)
+
+except requests.exceptions.Timeout:
+    print("Request timed out")
+
+except requests.exceptions.ConnectionError:
+    print("No internet / DNS failed")
+
+except requests.exceptions.HTTPError as e:
+    print(f"HTTP error: {e.response.status_code}")
+
+except requests.exceptions.RequestException as e:
+    print(f"Something went wrong: {e}")   # catches ALL requests errors
+Always set timeout — without it, your code can hang forever.
+
+6 — Session (reuse connections + share headers)
+pythonimport requests
+
+# Session reuses the TCP connection and shares headers/cookies across requests
+with requests.Session() as session:
+    session.headers.update({"Authorization": "Bearer my_token"})
+
+    r1 = session.get("https://jsonplaceholder.typicode.com/posts/1")
+    r2 = session.get("https://jsonplaceholder.typicode.com/posts/2")
+    r3 = session.get("https://jsonplaceholder.typicode.com/posts/3")
+
+    for r in [r1, r2, r3]:
+        print(r.json()["title"])
+Use Session whenever you make multiple requests to the same host — it's faster and cleaner.
+
+7 — Uploading a file
+pythonimport requests
+
+with open("photo.jpg", "rb") as f:
+    response = requests.post(
+        "https://httpbin.org/post",
+        files={"file": ("photo.jpg", f, "image/jpeg")}
+    )
+
+print(response.json()["files"])   # confirms what was received
+
+8 — PUT and DELETE
+pythonimport requests
+
+# PUT — update an existing resource
+response = requests.put(
+    "https://jsonplaceholder.typicode.com/posts/1",
+    json={"id": 1, "title": "Updated title", "body": "New body", "userId": 1}
+)
+print(response.status_code)   # 200
+print(response.json())
+
+# DELETE — remove a resource
+response = requests.delete("https://jsonplaceholder.typicode.com/posts/1")
+print(response.status_code)   # 200
+
+9 — Downloading a large file (streaming)
+pythonimport requests
+
+url = "https://speed.hetzner.de/100MB.bin"
+
+with requests.get(url, stream=True) as response:
+    response.raise_for_status()
+    with open("downloaded_file.bin", "wb") as f:
+        for chunk in response.iter_content(chunk_size=8192):  # 8 KB chunks
+            f.write(chunk)
+
+print("Download complete")
+stream=True means the body isn't downloaded all at once — essential for large files.
+
+Quick reference cheatsheet
+TaskCodeGETrequests.get(url)POST JSONrequests.post(url, json=data)POST formrequests.post(url, data=data)Set timeoutrequests.get(url, timeout=5)Check statusr.raise_for_status()Parse JSONr.json()Raw textr.textRaw bytesr.contentStatus coder.status_codeReuse connectionrequests.Session()
+
+The free test APIs used above — jsonplaceholder.typicode.com and httpbin.org — are perfect for practice. You can run every example above as-is. Want me to show how these same examples look with aiohttp (the async equivalent) for comparison?
