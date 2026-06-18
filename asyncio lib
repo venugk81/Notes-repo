@@ -1,0 +1,1024 @@
+Here's your complete asyncio mastery course — structured as interactive sessions you can work through at your own pace. Let me build you an interactive learning hub first, then we'll dive into Session 1.
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0.25s;
+    animation-timing-function: cubic-bezier(0.19, 1, 0.22, 1);
+  }
+VvisualizeVvisualize show_widget
+Now let's jump straight into Session 1. No fluff — just clean, runnable examples with deep explanations.
+
+Session 1 — Foundations: sync vs async & the event loop
+Why does asyncio exist?
+Python is single-threaded. When your code does something slow — like reading a file, making an HTTP call, or waiting for a database — it blocks the entire thread. Nothing else can run.
+python# BLOCKING — the thread sits idle during each sleep
+import time
+
+def fetch_data(name, delay):
+    print(f"Fetching {name}...")
+    time.sleep(delay)           # thread is frozen here
+    print(f"Done: {name}")
+
+start = time.time()
+fetch_data("users", 2)
+fetch_data("orders", 3)
+fetch_data("products", 1)
+print(f"Total: {time.time() - start:.1f}s")   # 6.0s — purely sequential
+asyncio lets you suspend a function while it waits, and run other code in the meantime — all in one thread.
+
+The three pillars you must understand first
+Coroutine  →  a function defined with async def that can be paused
+Awaitable  →  anything you can use await on (coroutine, Task, Future)
+Event Loop →  the engine that schedules and runs all coroutines
+
+Example 1 — Your first coroutine
+pythonimport asyncio
+
+async def greet(name):          # async def makes this a coroutine function
+    print(f"Hello, {name}!")
+    await asyncio.sleep(1)      # suspend HERE — other code can run
+    print(f"Bye, {name}!")
+
+asyncio.run(greet("Alice"))     # asyncio.run() creates the event loop and runs it
+Key insight: calling greet("Alice") does NOT run the function. It returns a coroutine object. Only asyncio.run() (or await) actually executes it.
+pythoncoro = greet("Alice")
+print(type(coro))   # <class 'coroutine'> — nothing has run yet!
+asyncio.run(coro)   # NOW it runs
+
+Example 2 — The power of async: tasks running concurrently
+pythonimport asyncio
+import time
+
+async def fetch_data(name, delay):
+    print(f"  → Starting: {name}")
+    await asyncio.sleep(delay)      # gives up control to the event loop
+    print(f"  ✓ Done:     {name}")
+    return f"data_from_{name}"
+
+async def main():
+    start = time.time()
+
+    # Run all three CONCURRENTLY — total ≈ 3s (longest one), not 6s
+    results = await asyncio.gather(
+        fetch_data("users",    2),
+        fetch_data("orders",   3),
+        fetch_data("products", 1),
+    )
+
+    print(f"\nResults: {results}")
+    print(f"Total:   {time.time() - start:.1f}s")   # ≈ 3.0s
+
+asyncio.run(main())
+Output:
+  → Starting: users
+  → Starting: orders
+  → Starting: products
+  ✓ Done:     products   (after 1s)
+  ✓ Done:     users      (after 2s)
+  ✓ Done:     orders     (after 3s)
+
+Results: ['data_from_users', 'data_from_orders', 'data_from_products']
+Total:   3.0s
+
+Example 3 — Understanding the event loop directly
+pythonimport asyncio
+
+async def task_a():
+    print("A: start")
+    await asyncio.sleep(2)
+    print("A: end")
+
+async def task_b():
+    print("B: start")
+    await asyncio.sleep(1)
+    print("B: end")
+
+async def main():
+    loop = asyncio.get_event_loop()
+    print(f"Running loop: {loop}")
+
+    # The moment you 'await', control returns to the loop
+    # The loop picks the next ready coroutine and runs it
+    await asyncio.gather(task_a(), task_b())
+
+asyncio.run(main())
+# Output order: A:start → B:start → B:end → A:end
+The event loop follows this cycle:
+┌─────────────────────────────────────┐
+│  1. Pick the next ready coroutine   │
+│  2. Run it until it hits an await   │
+│  3. Check if any I/O is done        │
+│  4. Wake up coroutines that can go  │
+│  5. Repeat                          │
+└─────────────────────────────────────┘
+
+Example 4 — async def vs regular def: the critical difference
+pythonimport asyncio
+
+def sync_function():
+    return 42                   # returns a value directly
+
+async def async_function():
+    await asyncio.sleep(0)
+    return 42                   # returns a coroutine object when called
+
+# Calling them:
+val = sync_function()           # val = 42  ✓
+coro = async_function()         # coro = <coroutine object>  — NOT 42!
+val2 = asyncio.run(async_function())  # val2 = 42  ✓
+
+# Common mistake — forgetting await inside async context:
+async def bad_example():
+    result = async_function()   # BUG: result is a coroutine, not 42
+    print(result)               # <coroutine object> — not what you want
+
+async def good_example():
+    result = await async_function()   # ✓ result is 42
+    print(result)
+
+Example 5 — asyncio.run() internals
+pythonimport asyncio
+
+# asyncio.run(coro) does roughly this:
+# 1. Creates a new event loop
+# 2. Runs the coroutine to completion
+# 3. Closes the loop
+# It's the standard entry point for asyncio programs.
+
+async def main():
+    print("Inside the event loop!")
+    await asyncio.sleep(0.1)
+    print("Still going...")
+
+# These are equivalent for top-level use:
+asyncio.run(main())
+
+# Manual equivalent (don't use in production — just for understanding):
+loop = asyncio.new_event_loop()
+loop.run_until_complete(main())
+loop.close()
+
+Session 1 — Practice Questions
+Try these before moving to Session 2. The answers will deepen your understanding far more than re-reading.
+Q1 — Conceptual: What is the difference between a coroutine function and a coroutine object? Write one line of code that demonstrates the difference.
+Q2 — Fix the bug: This code doesn't work as expected. Find and fix the issue:
+pythonimport asyncio
+
+async def double(n):
+    await asyncio.sleep(0.1)
+    return n * 2
+
+async def main():
+    result = double(5)
+    print(f"Result: {result}")
+
+asyncio.run(main())
+Q3 — Predict the output: What will this print, and in what order? Explain why:
+pythonimport asyncio
+
+async def worker(name, delay):
+    print(f"{name}: started")
+    await asyncio.sleep(delay)
+    print(f"{name}: finished")
+
+async def main():
+    await worker("A", 3)
+    await worker("B", 1)
+
+asyncio.run(main())
+Q4 — Write it yourself: Write an async function countdown(from_n) that prints numbers from from_n down to 1, with a 0.5-second pause between each. Then run two countdowns (from 3 and from 5) concurrently using asyncio.gather.
+Q5 — Timing challenge: Without running the code, predict the total execution time:
+pythonimport asyncio
+
+async def job(n):
+    await asyncio.sleep(n)
+    return n
+
+async def main():
+    a = await job(2)
+    b = await job(3)
+    results = await asyncio.gather(job(2), job(3))
+
+asyncio.run(main())
+
+Whenever you're ready, click Session 2 in the navigator above (or just tell me), and we'll cover asyncio.create_task, gather, wait, timeouts, and real concurrency patterns. Feel free to share your answers to the practice questions and I'll review them!
+
+Great idea — this is where asyncio really shines. The key swap is: requests (blocking) → aiohttp (async). Here are side-by-side practical examples:
+
+Setup
+bashpip install aiohttp
+The golden rule:
+requests.get()        →   await session.get()
+requests.Session()    →   aiohttp.ClientSession()
+response.json()       →   await response.json()
+response.text         →   await response.text()
+
+1 — Simple GET request
+python# ❌ REQUESTS (blocking)
+import requests
+
+response = requests.get("https://jsonplaceholder.typicode.com/posts/1")
+print(response.json())
+python# ✅ AIOHTTP + ASYNCIO
+import asyncio
+import aiohttp
+
+async def main():
+    async with aiohttp.ClientSession() as session:           # like requests.Session()
+        async with session.get(                              # like requests.get()
+            "https://jsonplaceholder.typicode.com/posts/1"
+        ) as response:
+            data = await response.json()                     # note: await here
+            print(response.status)                           # 200
+            print(data)
+
+asyncio.run(main())
+
+2 — The big win: fetch multiple URLs concurrently
+python# ❌ REQUESTS — sequential, slow (waits for each one)
+import requests, time
+
+urls = [f"https://jsonplaceholder.typicode.com/posts/{i}" for i in range(1, 6)]
+
+start = time.time()
+for url in urls:
+    r = requests.get(url)
+    print(r.json()["title"])
+print(f"Time: {time.time() - start:.2f}s")   # ~2.5s (0.5s × 5 requests)
+python# ✅ AIOHTTP — concurrent, fast (all requests in flight at once)
+import asyncio, aiohttp, time
+
+async def fetch_post(session, post_id):
+    url = f"https://jsonplaceholder.typicode.com/posts/{post_id}"
+    async with session.get(url) as response:
+        data = await response.json()
+        return data["title"]
+
+async def main():
+    start = time.time()
+
+    async with aiohttp.ClientSession() as session:
+        tasks = [fetch_post(session, i) for i in range(1, 6)]
+        titles = await asyncio.gather(*tasks)   # all 5 fire at once
+
+    for title in titles:
+        print(title)
+    print(f"Time: {time.time() - start:.2f}s")  # ~0.3s — 8x faster!
+
+asyncio.run(main())
+
+3 — GET with query parameters & headers
+pythonimport asyncio
+import aiohttp
+
+async def search_todos():
+    params  = {"userId": 1, "completed": "true"}
+    headers = {"Accept": "application/json"}
+
+    async with aiohttp.ClientSession(headers=headers) as session:
+        async with session.get(
+            "https://jsonplaceholder.typicode.com/todos",
+            params=params
+        ) as response:
+            response.raise_for_status()          # raises on 4xx/5xx
+            data = await response.json()
+            print(f"Found {len(data)} completed todos")
+            print(response.url)                  # shows built URL with params
+
+asyncio.run(search_todos())
+
+4 — POST request (sending JSON)
+pythonimport asyncio
+import aiohttp
+
+async def create_post():
+    payload = {
+        "title": "My Async Post",
+        "body":  "Written with aiohttp!",
+        "userId": 1
+    }
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            "https://jsonplaceholder.typicode.com/posts",
+            json=payload                         # same as requests' json=
+        ) as response:
+            print(response.status)               # 201
+            result = await response.json()
+            print(result)                        # {"id": 101, "title": ...}
+
+asyncio.run(create_post())
+
+5 — Error handling
+pythonimport asyncio
+import aiohttp
+
+async def safe_fetch(url):
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as r:
+                r.raise_for_status()
+                return await r.json()
+
+    except aiohttp.ClientConnectionError:
+        print("Connection failed")
+
+    except aiohttp.ClientResponseError as e:
+        print(f"HTTP error: {e.status}")         # 404, 500, etc.
+
+    except asyncio.TimeoutError:
+        print("Request timed out")
+
+    except aiohttp.ClientError as e:
+        print(f"Something went wrong: {e}")      # catches all aiohttp errors
+
+async def main():
+    # valid request
+    data = await safe_fetch("https://jsonplaceholder.typicode.com/posts/1")
+    print(data["title"])
+
+    # 404 — will print "HTTP error: 404"
+    await safe_fetch("https://jsonplaceholder.typicode.com/posts/99999")
+
+    # timeout — change total=0.0001 to trigger it
+    await safe_fetch("https://jsonplaceholder.typicode.com/posts/1")
+
+asyncio.run(main())
+
+6 — Fetch with retries (real-world pattern)
+pythonimport asyncio
+import aiohttp
+
+async def fetch_with_retry(session, url, retries=3, delay=1):
+    for attempt in range(1, retries + 1):
+        try:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as r:
+                r.raise_for_status()
+                return await r.json()
+
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            print(f"Attempt {attempt} failed: {e}")
+            if attempt < retries:
+                await asyncio.sleep(delay * attempt)   # exponential backoff
+            else:
+                raise
+
+async def main():
+    async with aiohttp.ClientSession() as session:
+        data = await fetch_with_retry(
+            session,
+            "https://jsonplaceholder.typicode.com/posts/1"
+        )
+        print(data["title"])
+
+asyncio.run(main())
+
+7 — Rate-limited concurrent requests (Semaphore)
+Firing 100 requests at once can get you blocked. Use asyncio.Semaphore to cap concurrency:
+pythonimport asyncio
+import aiohttp
+
+async def fetch(session, sem, post_id):
+    url = f"https://jsonplaceholder.typicode.com/posts/{post_id}"
+    async with sem:                              # only N requests at a time
+        async with session.get(url) as r:
+            data = await r.json()
+            print(f"Post {post_id}: {data['title'][:40]}")
+            return data
+
+async def main():
+    sem = asyncio.Semaphore(5)                   # max 5 concurrent requests
+
+    async with aiohttp.ClientSession() as session:
+        tasks = [fetch(session, sem, i) for i in range(1, 21)]  # 20 posts
+        results = await asyncio.gather(*tasks)
+    
+    print(f"\nFetched {len(results)} posts")
+
+asyncio.run(main())
+
+8 — Download files concurrently
+pythonimport asyncio
+import aiohttp
+
+FILES = [
+    ("https://jsonplaceholder.typicode.com/photos/1", "photo_1.json"),
+    ("https://jsonplaceholder.typicode.com/photos/2", "photo_2.json"),
+    ("https://jsonplaceholder.typicode.com/photos/3", "photo_3.json"),
+]
+
+async def download(session, url, filename):
+    async with session.get(url) as r:
+        content = await r.read()                 # raw bytes
+        with open(filename, "wb") as f:
+            f.write(content)
+        print(f"Saved {filename} ({len(content)} bytes)")
+
+async def main():
+    async with aiohttp.ClientSession() as session:
+        tasks = [download(session, url, fname) for url, fname in FILES]
+        await asyncio.gather(*tasks)
+    print("All downloads done!")
+
+asyncio.run(main())
+
+9 — POST + GET pipeline (real-world flow)
+Create a resource, then fetch it — chained async calls:
+pythonimport asyncio
+import aiohttp
+
+async def create_and_fetch():
+    async with aiohttp.ClientSession() as session:
+
+        # Step 1 — create a post
+        async with session.post(
+            "https://jsonplaceholder.typicode.com/posts",
+            json={"title": "Test", "body": "Hello", "userId": 1}
+        ) as r:
+            created = await r.json()
+            post_id = created["id"]
+            print(f"Created post with id: {post_id}")
+
+        # Step 2 — fetch it back (uses the returned id)
+        async with session.get(
+            f"https://jsonplaceholder.typicode.com/posts/{post_id}"
+        ) as r:
+            fetched = await r.json()
+            print(f"Fetched back: {fetched}")
+
+asyncio.run(create_and_fetch())
+
+Side-by-side summary
+requestsaiohttp + asynciorequests.get(url)await session.get(url)response.json()await response.json()response.textawait response.text()response.contentawait response.read()requests.Session()aiohttp.ClientSession()raise_for_status()raise_for_status() (same!)timeout=5ClientTimeout(total=5)Sequential onlyConcurrent with gather
+
+The pattern to always remember:
+pythonasync with aiohttp.ClientSession() as session:      # one session for all requests
+    async with session.get(url) as response:        # context manager for response
+        data = await response.json()                # always await the body read
+Want me to move on to Session 2 of the asyncio course, or go deeper into any of these examples?You said: Start asyncio Session 2: Tasks, awaitables and concurrency primitivesStart asyncio Session 2: Tasks, awaitables and concurrency primitivesJun 15Claude responded: Session 2 — Tasks, Awaitables & Concurrency PrimitivesSession 2 — Tasks, Awaitables & Concurrency Primitives
+Let's build on Session 1. You know what coroutines are — now we make them truly concurrent with Tasks, and control them with asyncio's timing tools.
+
+The 3 types of awaitables
+python# Anything you can use 'await' on is an "awaitable". There are exactly 3 kinds:
+
+# 1. Coroutine — from an async def function
+async def my_coro():
+    return 42
+
+# 2. Task — a coroutine scheduled to run on the event loop
+task = asyncio.create_task(my_coro())
+
+# 3. Future — a low-level promise of a result (Tasks are built on Futures)
+future = asyncio.get_event_loop().create_future()
+
+1 — asyncio.create_task() — the most important primitive
+pythonimport asyncio
+
+async def worker(name, delay):
+    print(f"  {name}: started")
+    await asyncio.sleep(delay)
+    print(f"  {name}: done")
+    return f"result_from_{name}"
+
+async def main():
+    # WITHOUT create_task — sequential (like Session 1's plain await)
+    await worker("A", 2)    # waits 2s
+    await worker("B", 1)    # then waits 1s → total 3s
+
+    # WITH create_task — concurrent, scheduled immediately
+    task_a = asyncio.create_task(worker("A", 2))   # schedules A now
+    task_b = asyncio.create_task(worker("B", 1))   # schedules B now
+
+    result_a = await task_a   # waits for A, but B is already running!
+    result_b = await task_b   # B is likely done already
+    print(result_a, result_b)
+
+asyncio.run(main())
+Critical insight: create_task() schedules the coroutine on the event loop immediately. The task starts running as soon as the current coroutine hits any await.
+
+2 — Task lifecycle & cancellation
+pythonimport asyncio
+
+async def long_job():
+    try:
+        print("  job: started")
+        await asyncio.sleep(10)         # simulates long work
+        print("  job: finished")        # never reached if cancelled
+        return "done"
+    except asyncio.CancelledError:
+        print("  job: I was cancelled! cleaning up...")
+        raise                           # always re-raise CancelledError
+
+async def main():
+    task = asyncio.create_task(long_job())
+
+    await asyncio.sleep(2)              # let it run for 2 seconds
+
+    # inspect the task
+    print(f"Done?      {task.done()}")       # False
+    print(f"Cancelled? {task.cancelled()}") # False
+
+    task.cancel()                       # send cancellation signal
+    await asyncio.sleep(0)             # give loop a tick to process it
+
+    print(f"Done?      {task.done()}")       # True
+    print(f"Cancelled? {task.cancelled()}") # True
+
+asyncio.run(main())
+
+3 — asyncio.gather() — run N coroutines concurrently
+pythonimport asyncio, time
+
+async def fetch(name, delay):
+    await asyncio.sleep(delay)
+    return f"{name}_data"
+
+async def main():
+    start = time.time()
+
+    # All 4 run concurrently — total ≈ max(delay) = 3s, not sum = 7s
+    results = await asyncio.gather(
+        fetch("users",    2),
+        fetch("orders",   3),
+        fetch("products", 1),
+        fetch("reviews",  1),
+    )
+    print(results)
+    print(f"Total: {time.time() - start:.1f}s")   # ≈ 3.0s
+
+asyncio.run(main())
+gather() with error handling
+pythonimport asyncio
+
+async def risky(name, should_fail=False):
+    await asyncio.sleep(0.5)
+    if should_fail:
+        raise ValueError(f"{name} exploded!")
+    return f"{name}_ok"
+
+async def main():
+    # Default — first exception cancels everything and propagates
+    try:
+        results = await asyncio.gather(
+            risky("A"),
+            risky("B", should_fail=True),
+            risky("C"),
+        )
+    except ValueError as e:
+        print(f"gather failed: {e}")    # B's error surfaces here
+
+    # return_exceptions=True — exceptions returned as values, nothing cancelled
+    results = await asyncio.gather(
+        risky("A"),
+        risky("B", should_fail=True),
+        risky("C"),
+        return_exceptions=True          # ← key flag
+    )
+    for r in results:
+        if isinstance(r, Exception):
+            print(f"Error: {r}")
+        else:
+            print(f"OK:    {r}")
+
+asyncio.run(main())
+
+4 — asyncio.wait() — fine-grained control
+pythonimport asyncio
+
+async def job(name, delay):
+    await asyncio.sleep(delay)
+    return name
+
+async def main():
+    tasks = {
+        asyncio.create_task(job("fast",   1), name="fast"),
+        asyncio.create_task(job("medium", 2), name="medium"),
+        asyncio.create_task(job("slow",   3), name="slow"),
+    }
+
+    # Wait until ALL are done
+    done, pending = await asyncio.wait(tasks, return_when=asyncio.ALL_COMPLETED)
+    print(f"All done: {[t.result() for t in done]}")
+
+    # Reset tasks
+    tasks = {
+        asyncio.create_task(job("fast",   1), name="fast"),
+        asyncio.create_task(job("medium", 2), name="medium"),
+        asyncio.create_task(job("slow",   3), name="slow"),
+    }
+
+    # Stop as soon as the FIRST one finishes
+    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+    winner = done.pop()
+    print(f"First done: {winner.result()}")
+
+    # Cancel the rest
+    for t in pending:
+        t.cancel()
+    await asyncio.gather(*pending, return_exceptions=True)
+
+asyncio.run(main())
+gather vs wait — when to use which
+gather()wait()Inputcoroutines or taskstasks onlyReturnsordered list of results(done, pending) setsOn errorraises (or return_exceptions)you inspect each taskUse whenyou want all results in orderyou need partial results or FIRST_COMPLETED
+
+5 — asyncio.sleep() — more than just waiting
+pythonimport asyncio
+
+async def main():
+    # asyncio.sleep(0) — yields control to the event loop for one tick
+    # Use it to let other tasks run without actually waiting
+    async def cooperative_task(name, n):
+        for i in range(n):
+            print(f"{name}: step {i}")
+            await asyncio.sleep(0)      # "yield" — let others run
+
+    await asyncio.gather(
+        cooperative_task("A", 3),
+        cooperative_task("B", 3),
+    )
+    # Output interleaves: A:0, B:0, A:1, B:1, A:2, B:2
+
+asyncio.run(main())
+
+6 — asyncio.wait_for() — timeout a single task
+pythonimport asyncio
+
+async def slow_api_call():
+    await asyncio.sleep(10)       # simulates a very slow response
+    return "data"
+
+async def main():
+    # Approach 1 — raises TimeoutError after N seconds
+    try:
+        result = await asyncio.wait_for(slow_api_call(), timeout=3.0)
+    except asyncio.TimeoutError:
+        print("Timed out after 3s!")
+
+    # Approach 2 — timeout with a fallback value
+    async def with_fallback(coro, timeout, fallback):
+        try:
+            return await asyncio.wait_for(coro, timeout)
+        except asyncio.TimeoutError:
+            return fallback
+
+    result = await with_fallback(slow_api_call(), timeout=2.0, fallback="default")
+    print(f"Got: {result}")     # "default"
+
+asyncio.run(main())
+
+7 — asyncio.shield() — protect a task from cancellation
+pythonimport asyncio
+
+async def critical_save():
+    print("  save: started (cannot be interrupted!)")
+    await asyncio.sleep(3)
+    print("  save: completed safely")
+    return "saved"
+
+async def main():
+    task = asyncio.create_task(critical_save())
+
+    try:
+        # shield() protects critical_save from being cancelled
+        # if wait_for times out, only the shield wrapper is cancelled
+        result = await asyncio.wait_for(asyncio.shield(task), timeout=1.0)
+    except asyncio.TimeoutError:
+        print("wait_for timed out — but critical_save is still running!")
+
+    await task    # wait for it to finish naturally
+    print(f"Result: {task.result()}")
+
+asyncio.run(main())
+
+8 — Real-world pattern: task pool with progress
+pythonimport asyncio, time
+
+async def process_item(item_id):
+    delay = 0.5 + (item_id % 3) * 0.3      # vary the work time
+    await asyncio.sleep(delay)
+    return {"id": item_id, "value": item_id ** 2}
+
+async def main():
+    items = list(range(1, 11))              # 10 items to process
+    sem   = asyncio.Semaphore(3)            # max 3 concurrent at a time
+    results = []
+    start = time.time()
+
+    async def bounded(item_id):
+        async with sem:
+            result = await process_item(item_id)
+            print(f"  ✓ item {item_id:2d} done |Claude's response was interrupted.Try againYou said: cover next section Tasks, awaitables & concurrency primitivescover next section Tasks, awaitables & concurrency primitivesJun 15Claude responded: Session 2 — Continued: Tasks, Awaitables & Concurrency PrimitivesSession 2 — Continued: Tasks, Awaitables & Concurrency Primitives
+Picking up where we left off — let's finish the task pool pattern, then cover asyncio.TaskGroup, as_completed, and the full concurrency toolkit.
+
+8 — Real-world pattern: task pool with progress (completed)
+pythonimport asyncio, time
+
+async def process_item(item_id):
+    delay = 0.5 + (item_id % 3) * 0.3
+    await asyncio.sleep(delay)
+    return {"id": item_id, "value": item_id ** 2}
+
+async def main():
+    items = list(range(1, 11))
+    sem   = asyncio.Semaphore(3)          # max 3 concurrent
+    results = []
+    start = time.time()
+
+    async def bounded(item_id):
+        async with sem:
+            result = await process_item(item_id)
+            print(f"  ✓ item {item_id:2d} done | value={result['value']}")
+            return result
+
+    tasks = [asyncio.create_task(bounded(i)) for i in items]
+    results = await asyncio.gather(*tasks)
+
+    print(f"\nAll done in {time.time() - start:.2f}s")
+    print(f"Results: {[r['value'] for r in results]}")
+
+asyncio.run(main())
+Output:
+  ✓ item  1 done | value=1
+  ✓ item  2 done | value=4
+  ✓ item  3 done | value=9
+  ✓ item  4 done | value=16
+  ...
+All done in 2.10s     ← vs ~8s sequential
+
+9 — asyncio.as_completed() — process results as they arrive
+gather() waits for ALL tasks. as_completed() gives you each result the moment it's ready — perfect for showing progress or acting on early results.
+pythonimport asyncio, time
+
+async def fetch(name, delay):
+    await asyncio.sleep(delay)
+    return f"{name} (took {delay}s)"
+
+async def main():
+    coros = [
+        fetch("slow",    3),
+        fetch("fast",    1),
+        fetch("medium",  2),
+        fetch("instant", 0.5),
+    ]
+
+    print("Results arriving in completion order:\n")
+    start = time.time()
+
+    # as_completed yields futures in the order they FINISH, not the order listed
+    for future in asyncio.as_completed(coros):
+        result = await future
+        elapsed = time.time() - start
+        print(f"  [{elapsed:.1f}s] Got: {result}")
+
+asyncio.run(main())
+Output:
+Results arriving in completion order:
+
+  [0.5s] Got: instant (took 0.5s)
+  [1.0s] Got: fast    (took 1s)
+  [2.0s] Got: medium  (took 2s)
+  [3.0s] Got: slow    (took 3s)
+Real use: show a progress bar as tasks complete
+pythonimport asyncio
+
+async def fetch_user(user_id):
+    await asyncio.sleep(0.3 + user_id * 0.1)
+    return {"id": user_id, "name": f"User_{user_id}"}
+
+async def main():
+    user_ids = range(1, 8)
+    coros    = [fetch_user(uid) for uid in user_ids]
+    total    = len(coros)
+
+    users = []
+    for i, future in enumerate(asyncio.as_completed(coros), 1):
+        user = await future
+        users.append(user)
+        bar  = "█" * i + "░" * (total - i)
+        print(f"  [{bar}] {i}/{total} — fetched {user['name']}", end="\r")
+
+    print(f"\n\nAll {total} users loaded!")
+    print([u["name"] for u in users])
+
+asyncio.run(main())
+
+10 — asyncio.TaskGroup — the modern way (Python 3.11+)
+TaskGroup is the safest way to manage multiple tasks. It replaces the gather() + manual cancellation pattern with a clean context manager. If any task raises, all others are cancelled automatically.
+pythonimport asyncio
+
+async def worker(name, delay, fail=False):
+    await asyncio.sleep(delay)
+    if fail:
+        raise ValueError(f"{name} failed!")
+    return f"{name}_done"
+
+async def main():
+    results = []
+
+    async with asyncio.TaskGroup() as tg:
+        t1 = tg.create_task(worker("alpha",   1))
+        t2 = tg.create_task(worker("beta",    2))
+        t3 = tg.create_task(worker("gamma",   1))
+        # All 3 run concurrently
+        # TaskGroup waits for ALL to finish before exiting the block
+
+    # Results available after the 'async with' block
+    results = [t1.result(), t2.result(), t3.result()]
+    print(results)   # ['alpha_done', 'beta_done', 'gamma_done']
+
+asyncio.run(main())
+TaskGroup error handling — automatic cleanup
+pythonimport asyncio
+
+async def job(name, delay, fail=False):
+    try:
+        await asyncio.sleep(delay)
+        if fail:
+            raise RuntimeError(f"{name} exploded")
+        print(f"  {name}: completed")
+        return name
+    except asyncio.CancelledError:
+        print(f"  {name}: was cancelled (cleanup here)")
+        raise
+
+async def main():
+    try:
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(job("A", 1))
+            tg.create_task(job("B", 2, fail=True))  # this will fail
+            tg.create_task(job("C", 3))
+        # B fails at t=2 → A completes, C is cancelled automatically
+
+    except* RuntimeError as eg:
+        # Python 3.11+ ExceptionGroup syntax
+        for e in eg.exceptions:
+            print(f"Caught: {e}")
+
+asyncio.run(main())
+gather() vs TaskGroup — when to use which
+gather()TaskGroupPython version3.4+3.11+Error handlingreturn_exceptions=Trueautomatic cancel + ExceptionGroupTask creationbefore gather callinside async with blockCancel others on errorno (by default)yes, alwaysGet resultsreturn valuetask.result() after blockRecommended forquick scripts, older Pythonproduction code, Python 3.11+
+
+11 — Task naming & introspection
+pythonimport asyncio
+
+async def background_job(n):
+    await asyncio.sleep(n)
+    return n * 10
+
+async def main():
+    # Name your tasks — invaluable for debugging
+    t1 = asyncio.create_task(background_job(1), name="quick-job")
+    t2 = asyncio.create_task(background_job(5), name="slow-job")
+    t3 = asyncio.create_task(background_job(2), name="medium-job")
+
+    # Inspect all running tasks
+    all_tasks = asyncio.all_tasks()
+    print(f"Running tasks: {[t.get_name() for t in all_tasks]}")
+
+    await asyncio.sleep(1.5)
+
+    # Check state mid-flight
+    for task in [t1, t2, t3]:
+        print(f"  {task.get_name():<15} done={task.done()} cancelled={task.cancelled()}")
+
+    await asyncio.gather(t1, t2, t3)
+
+asyncio.run(main())
+Output:
+Running tasks: ['quick-job', 'slow-job', 'medium-job', 'Task-1']
+  quick-job       done=True  cancelled=False
+  slow-job        done=False cancelled=False
+  medium-job      done=True  cancelled=False
+
+12 — asyncio.current_task() & callbacks
+pythonimport asyncio
+
+async def tracked_worker(task_id):
+    current = asyncio.current_task()
+    print(f"  [{current.get_name()}] worker {task_id} starting")
+    await asyncio.sleep(1)
+    return task_id * 100
+
+def on_done(task):
+    if task.cancelled():
+        print(f"  {task.get_name()} was cancelled")
+    elif task.exception():
+        print(f"  {task.get_name()} raised: {task.exception()}")
+    else:
+        print(f"  {task.get_name()} finished → {task.result()}")
+
+async def main():
+    tasks = []
+    for i in range(1, 4):
+        t = asyncio.create_task(tracked_worker(i), name=f"worker-{i}")
+        t.add_done_callback(on_done)    # fires when task completes
+        tasks.append(t)
+
+    await asyncio.gather(*tasks)
+
+asyncio.run(main())
+
+13 — Complete concurrency toolkit: everything together
+A realistic example that combines TaskGroup, Semaphore, as_completed, timeouts and error handling into one pattern you can adapt for production:
+pythonimport asyncio, time, random
+
+# Simulates an API call that sometimes fails or is slow
+async def api_call(endpoint, item_id):
+    delay = random.uniform(0.3, 1.5)
+    await asyncio.sleep(delay)
+
+    if random.random() < 0.2:               # 20% failure rate
+        raise ConnectionError(f"{endpoint}/{item_id} failed")
+
+    return {"endpoint": endpoint, "id": item_id, "delay": round(delay, 2)}
+
+async def safe_call(session_sem, endpoint, item_id, timeout=2.0):
+    async with session_sem:                 # rate limit
+        try:
+            return await asyncio.wait_for(
+                api_call(endpoint, item_id),
+                timeout=timeout
+            )
+        except asyncio.TimeoutError:
+            return {"error": "timeout", "id": item_id}
+        except ConnectionError as e:
+            return {"error": str(e),    "id": item_id}
+
+async def main():
+    sem       = asyncio.Semaphore(4)        # 4 concurrent max
+    endpoints = ["users", "orders", "products"]
+    item_ids  = range(1, 7)                 # 6 items each = 18 total calls
+
+    start  = time.time()
+    ok     = []
+    errors = []
+
+    coros = [
+        safe_call(sem, ep, iid)
+        for ep in endpoints
+        for iid in item_ids
+    ]
+
+    print(f"Firing {len(coros)} requests (max 4 concurrent)...\n")
+
+    for future in asyncio.as_completed(coros):
+        result = await future
+        if "error" in result:
+            errors.append(result)
+            print(f"  ✗ error  — {result['error']}")
+        else:
+            ok.append(result)
+            print(f"  ✓ ok     — {result['endpoint']}/{result['id']} in {result['delay']}s")
+
+    elapsed = time.time() - start
+    print(f"\n{'─'*45}")
+    print(f"  Total:   {len(coros)} requests in {elapsed:.2f}s")
+    print(f"  Success: {len(ok)}")
+    print(f"  Errors:  {len(errors)}")
+    print(f"  Speedup: ~{len(coros) * 0.9 / elapsed:.1f}x vs sequential")
+
+asyncio.run(main())
+
+Full concurrency primitives map
+asyncio.create_task()     → schedule a coroutine, get a Task back
+asyncio.gather()          → run N awaitables, get all results in order
+asyncio.wait()            → run N tasks, get (done, pending) sets
+asyncio.as_completed()    → iterate results as they finish
+asyncio.wait_for()        → add a timeout to any awaitable
+asyncio.shield()          → protect a task from cancellation
+asyncio.TaskGroup         → structured concurrency (Python 3.11+)
+asyncio.sleep(0)          → yield control to the event loop
+asyncio.all_tasks()       → inspect every running task
+asyncio.current_task()    → get the currently running task
+
+Session 2 — Practice Questions
+Q1 — Spot the difference: What is the output order and total time of each snippet? Explain why they differ:
+python# Snippet A
+async def main():
+    t1 = asyncio.create_task(worker("A", 2))
+    t2 = asyncio.create_task(worker("B", 1))
+    await t1
+    await t2
+
+# Snippet B
+async def main():
+    await worker("A", 2)
+    await worker("B", 1)
+Q2 — Fix the bug: This code intends to run tasks concurrently but doesn't. Why, and how do you fix it?
+pythonasync def main():
+    results = await asyncio.gather(
+        await fetch("users",    2),
+        await fetch("orders",   1),
+        await fetch("products", 3),
+    )
+Q3 — Write it yourself: Fetch these 5 URLs concurrently using aiohttp + asyncio.gather(), and print each title as soon as it arrives using as_completed():
+pythonurls = [f"https://jsonplaceholder.typicode.com/posts/{i}" for i in range(1, 6)]
+Q4 — Timeout challenge: Write a function fetch_with_timeout(urls, timeout) that fetches a list of URLs concurrently, returns results for those that respond within the timeout, and returns None for those that don't — without crashing the whole program.
+Q5 — TaskGroup vs gather: Rewrite this gather() code using TaskGroup (Python 3.11+) and explain what happens differently when job("B") raises an exception:
+pythonresults = await asyncio.gather(
+    job("A", 1),
+    job("B", 2, fail=True),
+    job("C", 3),
+    return_exceptions=True
+)
+Q6 — Design question: You need to process 1000 items through an API that allows max 10 concurrent requests. Which primitives would you combine, and why? Write the skeleton code.
