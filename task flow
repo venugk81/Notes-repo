@@ -1,0 +1,180 @@
+# . asyncio.gather()
+#
+# Suppose you have multiple coroutines:
+
+import asyncio
+
+async def fetch_user():
+    print("fetching user")
+    await asyncio.sleep(2)
+    print("fetch user done")
+    return "User"
+
+async def fetch_orders():
+    print("fetching orders")
+    await asyncio.sleep(3)
+    print("fetch orders done")
+    return "Orders"
+
+async def main():
+    task1 = asyncio.create_task(fetch_user())
+    task2 = asyncio.create_task(fetch_orders())
+
+    print("Main doing work")
+
+    x= await task1
+    print(x, "- await completed here")
+    y = await task2
+    print(y, "- await completed here")
+
+
+
+asyncio.run(main())
+
+'''
+create_task()
+main()
+ |
+ +---- create_task(A)
+ |
+ +---- do other work
+ |
+ +---- await A
+
+You control when to wait.
+
+
+
+Without gather:
+
+user:str = await fetch_user()
+orders : str= await fetch_orders()
+2 sec + 3 sec = 5 sec
+
+With gather:
+user, orders = await asyncio.gather(
+    fetch_user(),
+    fetch_orders()
+)
+
+max(2, 3) = 3 sec
+Because both run concurrently.
+
+Visual Comparison
+create_task()
+main()
+ |
+ +---- create_task(A)
+ |
+ +---- do other work
+ |
+ +---- await A
+
+You control when to wait.
+
+gather()
+main()
+ |
+ +---- gather(A,B,C)
+         |
+         +---- start A
+         +---- start B
+         +---- start C
+         |
+         +---- wait for all
+
+gather() immediately waits for all tasks.
+
+Return Values:
+
+create_task
+task = asyncio.create_task(fetch())
+result = await task
+
+One task → one result.
+
+gather
+results = await asyncio.gather(
+    fetch1(),
+    fetch2(),
+    fetch3()
+)
+
+Returns:
+
+[
+    result1,
+    result2,
+    result3
+]
+
+in the same order as provided.
+
+Exception Handling Difference
+gather()
+await asyncio.gather(
+    task1(),
+    task2()
+)
+
+If one task fails:
+
+ValueError("Boom")
+
+then gather() raises that exception.
+
+You can avoid that with:
+
+results = await asyncio.gather(
+    task1(),
+    task2(),
+    return_exceptions=True
+)
+
+Now:
+
+[
+    "success",
+    ValueError("Boom")
+]
+create_task()
+
+You handle each task separately:
+
+task = asyncio.create_task(worker())
+
+try:
+    await task
+except Exception:
+    print("Failed")
+
+More control over individual failures.
+
+
+
+Real FastAPI Example
+
+Suppose an API needs:
+
+User info
+Orders
+Recommendations
+Bad
+user = await get_user()
+orders = await get_orders()
+recommendations = await get_recommendations()
+
+Time:
+
+1 + 2 + 3 = 6 sec
+Good
+user, orders, recommendations = await asyncio.gather(
+    get_user(),
+    get_orders(),
+    get_recommendations()
+)
+
+Time:
+
+max(1,2,3)=3 sec
+'''
