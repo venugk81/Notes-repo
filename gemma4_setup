@@ -1,0 +1,33 @@
+import os
+
+from dotenv import load_dotenv
+
+from openai import OpenAI
+
+from langchain_ollama import ChatOllama
+#
+# llm = ChatOllama(
+# base_url="http://localhost:11434",
+# model = "gemma4:e2b",
+# temperature=0.5
+# )
+# response = llm.invoke ("Hello, how are you doing today?")
+# print (response)
+
+load_dotenv()
+
+client = OpenAI(
+    api_key=f"{os.getenv('GOOGLE_API_KEY')}",
+    base_url="https://generativelanguage.googleapis.com/v1beta/"
+)
+
+
+## No need to set-up or install this model gemini-2.5-flash as it is free to use for now.
+response= client.chat.completions.create(
+    model="gemini-2.5-flash",
+    messages=[
+        {"role": "user", "content": "hey there. what is fast api ? "}
+    ]
+)
+
+print(response.choices[0].message.content)
