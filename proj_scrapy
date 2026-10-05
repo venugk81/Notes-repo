@@ -1,0 +1,135 @@
+import requests
+import pandas as pd
+from bs4 import BeautifulSoup
+import numpy as np
+
+headers = {
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
+    "accept-encoding": "gzip",
+    "accept-language": "en-US,en;q=0.9",
+    "content-type": "application/x-www-form-urlencoded"
+}
+
+
+tot_pages_count = 10
+
+prod_name = []
+prod_rating = []
+prod_price = []
+prod_act_price = []
+prod_page = []
+prod_brand = []
+prod_ram = []
+prod_storage = []
+battery_details = []
+camera_details = []
+prod_discount = []
+
+range_counts = range(1, int(tot_pages_count)+1)
+print(range_counts)
+for page in range_counts:
+
+    url1 = f"https://www.flipkart.com/search?q=smartphone&as=on&as-show=on&otracker=AS_Query_OrganicAutoSuggest_4_5_na_na_na&otracker1=AS_Query_OrganicAutoSuggest_4_5_na_na_na&as-pos=4&as-type=RECENT&suggestionId=smartphone&requestId=0d3788ae-4292-4222-b969-cf2f01a59412&as-searchtext=smart&page={page}"
+
+    res1 = requests.get(url1)
+    print(res1.status_code)
+    soup1 = BeautifulSoup(res1.text, "html.parser")
+
+    print(f"============Page: {page}")
+    print(f"URL--------------- {url1}")
+
+    all_rows = soup1.find_all('div', attrs= {"class":"ZFwe0M row"})
+    print(f"all rows count: {len(all_rows)}")
+    for row in all_rows:
+
+        pname_ele = row.find('div', attrs= {"class":"RG5Slk"})
+        prod_name.append(pname_ele.text[:50] if pname_ele else np.nan)
+
+        brand = pname_ele.text.split()[0] if pname_ele else None
+        prod_brand.append(brand)
+
+        rating_ele = row.find('div', attrs= {"class":"MKiFS6"})
+        prod_rating.append(rating_ele.text if rating_ele else np.nan)
+
+        price_ele = row.find('div', attrs= {"class":"hZ3P6w DeU9vF"})
+        prod_price.append(price_ele.text if price_ele else np.nan)
+
+        act_price_ele = row.find('div', attrs= {"class":"kRYCnD gxR4EY"})
+        prod_act_price.append(act_price_ele.text if act_price_ele else np.nan)
+
+        discount = row.find('div', attrs= {"class":"HQe8jr"})
+        prod_discount.append(discount.text if discount else np.nan)
+
+
+        mobile_details = row.find_all('li', attrs= {"class":"DTBslk"})
+        for detail in mobile_details:
+            
+            info = detail.text
+            if "gb ram" in info.lower() and "gb rom" in info.lower():
+                arr_memory_details = info.split("|") if info else np.nan
+                ram_size = arr_memory_details[0].strip()
+                storage = arr_memory_details[1].strip()
+
+                prod_ram.append(ram_size if ram_size else np.nan)
+                prod_storage.append(storage if storage else np.nan)
+
+            elif "gb ram" not in info.lower() and "gb rom" in info.lower():     ##in this case only ROM data is available
+                storage = info[0].strip()
+                prod_storage.append(storage if storage else np.nan)
+                prod_ram.append(np.nan)
+
+
+
+            elif "lithium" in info.lower() or "battery" in info.lower()  or "mah" in info.lower():
+                # arr_battery_details = info.split() if info else np.nan
+                battery_details.append(info if info else np.nan)  #saving full information of the battery details
+            elif "camera" in info.lower() or "mp" in info.lower():
+                camera_details.append(info if info else np.nan)  #saving full information of the camera details
+                # You can choose to store camera details if needed
+
+
+        prod_page.append(page)
+
+        print("=================== page ============== ", page)
+        print("prod_name: ", len(prod_name), "battery_details: ", len(battery_details), "camera_details: ", len(camera_details))
+
+
+    if page==3:
+        break
+
+
+
+# check if all counts are equal
+print("=================")
+print("prod_name: ", len(prod_name))
+print("prod_brand: ", len(prod_brand))
+print("prod_rating: ", len(prod_rating))
+print("prod_price: ", len(prod_price))
+print("prod_act_price: ", len(prod_act_price))
+print("prod_page: ", len(prod_page))
+print("prod_ram: ", len(prod_ram))
+print("prod_storage: ", len(prod_storage))
+print("battery_details: ", len(battery_details))
+print("camera_details: ", len(camera_details))
+print("prod_discount: ", len(prod_discount))
+
+import pandas as pd
+prod_df = pd.DataFrame({
+    "Product_Name": prod_name,
+    "Brand": prod_brand,
+    "Rating": prod_rating,
+    "Price": prod_price,
+    "Actual_Price": prod_act_price,
+    "Page_number": prod_page,
+    "RAM": prod_ram,
+    "Storage": prod_storage,
+    "Battery_Details": battery_details,
+    "Camera_Details": camera_details,
+    "Discount": prod_discount
+
+})
+print(prod_df.head(1))
+
+print(prod_df.info())
+
+
